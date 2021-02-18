@@ -17,8 +17,8 @@ int CheckedCount = 0; //이미 둔 자리의 수 9가 되면 비긴 것
 int winner = 0; //Computer = 1, User = 2
 int maxDepth = 9; //몇 수 앞까지 두어볼지를 결정 
 int bestPosition[2] = { -1, -1 }; //구조체로 할까 하다 간단하게 배열로 사용 Mimimax 함수에서 사용 
-int turn;
-int rating[3] = {0, 0, 0};
+int turn; //mcts에서 player 
+int rating[3] = {0, 0, 0}; // mcts와 alpha beta간 대결에서 승률을 알아보기 위한 변수 
 
 //1차원 숫자(1-9)로 입력된 값을 좌표 값으로 변환하기 위한 구조체 
 typedef struct tagPoint {
@@ -462,10 +462,13 @@ void free_mem(Node* node)
 	{
 		free_mem(node->child_nodes[i]);
 		free(node->child_nodes[i]);
+		node->child_nodes[i] = NULL; 
 	}
+	// child가 다 해제되었으니 child를 담고있는 배열도 해제 
 	if (i == node->size_of_c_nodes)
 	{
 		free(node->child_nodes);
+		node->child_nodes = NULL;
 	}
 }
 
@@ -480,19 +483,23 @@ int Mcts(State* s, int iter_num)
 	{
 		node = root_node;
 		state = *s;
+		
+		// Selection
 		while (node->size_of_e_pos == 0 && node->size_of_c_nodes)
 		{
 			node = choice_child(node);
 			do_move(state.board, node->move);
 		}
 
+		// Expantion
 		if (node->size_of_e_pos && !isFinish(state.board, turn))
 		{
 			move = node->empty_positions[--node->size_of_e_pos];
 			do_move(state.board, move);
 			node = add_child_node(move, state.board, node);
 		}
-
+		
+		// simulation(roolout)
 		while (!isFinish(state.board, turn))
 		{
 			GetEmptyPosition(state.board, pos);
@@ -500,9 +507,9 @@ int Mcts(State* s, int iter_num)
 			move = pos[index];
 			do_move(state.board, move);
 		}
-
 		result = get_result(state.board, node->player);
 
+		// backpropagation
 		while (node != NULL)
 		{
 			node->wins += result;
